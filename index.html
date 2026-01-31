@@ -63,6 +63,25 @@
                 localStorage.setItem('anon_id', id); return id;
             });
 
+            // FIX: Detect Shared Room Link on Load
+            React.useEffect(() => {
+                const params = new URLSearchParams(window.location.search);
+                const roomSlug = params.get('room');
+                if (roomSlug) {
+                    const roomName = roomSlug.split('-').slice(0, -1).join(' ') || "Shared Room";
+                    const newRoom = { name: roomName.toUpperCase(), slug: roomSlug };
+                    setActiveRoom(newRoom);
+                    setView('chat');
+                    // Add to recent rooms list if not already there
+                    setRooms(prev => {
+                        if (prev.some(r => r.slug === roomSlug)) return prev;
+                        const updated = [newRoom, ...prev];
+                        localStorage.setItem('my_rooms', JSON.stringify(updated));
+                        return updated;
+                    });
+                }
+            }, []);
+
             React.useEffect(() => { document.body.className = theme; }, [theme]);
 
             React.useEffect(() => {
@@ -126,7 +145,11 @@
                 await sb.from('messages').insert([{ content: body, user_session_id: sid, username: myName, room_slug: activeRoom.slug }]);
             };
 
-            const getShareLink = () => `${window.location.origin}${window.location.pathname}?room=${activeRoom?.slug || ''}`;
+            // FIXED SHARE URL LOGIC
+            const getShareLink = () => {
+                const baseUrl = window.location.origin + window.location.pathname;
+                return `${baseUrl}?room=${activeRoom?.slug || ''}`;
+            };
 
             const visibleMessages = messages.filter(m => {
                 const ageInMs = Date.now() - new Date(m.created_at).getTime();
@@ -155,7 +178,7 @@
                             {rooms.map(r => (
                                 <div key={r.slug} onClick={() => { setActiveRoom(r); setView('chat'); }} className="glass-morphism p-5 rounded-3xl flex justify-between items-center cursor-pointer">
                                     <h3 className="font-extrabold">{r.name}</h3>
-                                    <button onClick={(e) => { e.stopPropagation(); setRooms(rooms.filter(x => x.slug !== r.slug)); }} className="text-rose-500 opacity-50">🗑️</button>
+                                    <button onClick={(e) => { e.stopPropagation(); setRooms(rooms.filter(x => x.slug !== r.slug)); localStorage.setItem('my_rooms', JSON.stringify(rooms.filter(x => x.slug !== r.slug))); }} className="text-rose-500 opacity-50">🗑️</button>
                                 </div>
                             ))}
                         </div>
@@ -188,7 +211,7 @@
                     <h1 className="text-5xl font-black mb-6 uppercase">NEW ROOM</h1>
                     <input autoFocus value={input} onChange={e => setInput(e.target.value)} placeholder="Node Name..." className="glass-morphism w-full p-6 rounded-3xl text-xl outline-none mb-6" />
                     <button onClick={() => {
-                        const n = { name: input, slug: input.toLowerCase().replace(/\s+/g, '-') + '-' + Math.random().toString(36).substr(2, 4) };
+                        const n = { name: input.toUpperCase(), slug: input.toLowerCase().replace(/\s+/g, '-') + '-' + Math.random().toString(36).substr(2, 4) };
                         const up = [n, ...rooms]; setRooms(up); localStorage.setItem('my_rooms', JSON.stringify(up));
                         setActiveRoom(n); setView('chat'); setInput('');
                     }} className="w-full bg-[#00ffcc] text-black p-6 rounded-3xl font-black text-xl">ACTIVATE</button>
@@ -242,7 +265,7 @@
                             <div className="glass-morphism p-10 rounded-[3rem] text-center space-y-4" onClick={e=>e.stopPropagation()}>
                                 <h3 className="font-black text-xl mb-4 text-[#00ffcc]">SHARE NODE</h3>
                                 <button onClick={() => { navigator.clipboard.writeText(getShareLink()); alert("Link Copied!"); }} className="w-full bg-white text-black p-5 rounded-2xl font-bold">COPY LINK</button>
-                                <button onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent("Join my secure chat: " + getShareLink())}`, '_blank'); }} className="w-full bg-[#25D366] text-white p-5 rounded-2xl font-bold">WHATSAPP</button>
+                                <button onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent("Join my secure chat node: " + getShareLink())}`, '_blank'); }} className="w-full bg-[#25D366] text-white p-5 rounded-2xl font-bold">WHATSAPP</button>
                                 <button onClick={()=>setShareOpen(false)} className="w-full p-4 opacity-40 font-bold text-xs uppercase">CLOSE</button>
                             </div>
                         </div>
