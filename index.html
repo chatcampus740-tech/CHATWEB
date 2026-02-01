@@ -40,53 +40,30 @@
         const { createClient } = supabase;
         const sb = createClient('https://meelmgmgbjufqkdgivjw.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1lZWxtZ21nYmp1ZnFrZGdpdmp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNjQzOTUsImV4cCI6MjA4MzY0MDM5NX0.56k_rgAJWSIidZVDzwaMZ0w2ZwXoBwN0rsxfUbNc3rI');
         
-        const NAMES = ["Palliyil Prabhakaran", "Angamaly Aniyan", "Thoppil Thommi", "Kalliyil Keshavan", "Parambil Paraman", "Koyikkal Kumaran", "Vayalil Velayudhan", "Kottarathil Kuttappan", "Chalil Chandru", "Mannadiyar Maniyan", "Komban Raju", "Irumbu Rajan", "Veeran Soman", "Shakthan Babu", "Ugran Shaji", "Sakthi Unni", "Vikraman Das", "Rudran chami", "Simham Ravi", "Balavan Mohan"];
-        const BANNED_LIST = ["fuck", "slut", "sexy", "whore", "bitch", "harass", "sex", "nude"];
+        const NAMES = ["Palliyil Prabhakaran", "Angamaly Aniyan", "Thoppil Thommi", "Kalliyil Keshavan", "Parambil Paraman", "Koyikkal Kumaran", "Vayalil Velayudhan", "Kottarathil Kuttappan", "Chalil Chandru", "Mannadiyar Maniyan", "Komban Raju", "Irumbu Rajan", "Veeran Soman", "Shakthan Babu", "Ugran Shaji", "Sakthi Unni", "Vikraman Das", "Rudran chami", "Simham Ravi", "Balavan Mohan", "Auto Antony", "Hotel Balan", "Cycle Chandran", "Mixer Mani", "Signal Shaji", "Cement Ramu", "Battery Babu", "Printer Prasad", "Generator Gopi", "Poster Rakesh", "Kaduva prasad", "Mutta manikkuttan", "Edivett rajappan", "Minnal ramu", "Pamb sura", "Dashamoolam damu", "Udayipp Unni", "Thallu Thomas", "Kallan Kuttan", "Vettu Vijayan", "Rowdy Ramanan", "Don Dasan", "Komban Kunjumon", "Power Prabhakaran", "Mass Madhavan", "Local Legend Lalu", "Communist ramani", "Parakkum Shyju", "Rider vishnu", "Kuttikatil ramanunni", "Bheeman rakhu"];
+        const BANNED_LIST = ["fuck", "slut", "sexy", "whore", "bitch", "harass", "sex", "nude", "vanam", "kambi", "mola", "sugam", "kundi", "koothi", "pannal", "kaamam", "mood akkuka", "thottu kalikkal", "thodal", "vikaram", "horny", "dirty", "hot", "sensual", "intimate", "penis", "vagina", "cock", "pussy", "porn", "xxx"];
 
         function App() {
             const [view, setView] = React.useState('home');
             const [theme, setTheme] = React.useState('theme-mix');
-            const [rooms, setRooms] = React.useState(JSON.parse(localStorage.getItem('my_rooms') || '[]'));
+            const [rooms, setRooms] = React.useState(() => JSON.parse(localStorage.getItem('my_rooms') || '[]'));
             const [activeRoom, setActiveRoom] = React.useState(null);
             const [messages, setMessages] = React.useState([]);
             const [input, setInput] = React.useState('');
             const [replyTo, setReplyTo] = React.useState(null);
             const [onlineCount, setOnlineCount] = React.useState(1);
+            const [typer, setTyper] = React.useState(null);
             const [timeLeft, setTimeLeft] = React.useState("");
             const [shareOpen, setShareOpen] = React.useState(false);
             const [settingsOpen, setSettingsOpen] = React.useState(false);
             const [selectedMsgId, setSelectedMsgId] = React.useState(null);
             const [showHint, setShowHint] = React.useState(false);
+            const [tick, setTick] = React.useState(0);
             const scrollRef = React.useRef(null);
             const [sid] = React.useState(() => {
                 const id = localStorage.getItem('anon_id') || Math.random().toString(36).substr(2, 9);
                 localStorage.setItem('anon_id', id); return id;
             });
-
-            // FIX: Detect Shared Room Link on Load
-            React.useEffect(() => {
-                const params = new URLSearchParams(window.location.search);
-                const roomSlug = params.get('room');
-                if (roomSlug) {
-                    const roomName = roomSlug.split('-').slice(0, -1).join(' ') || "Shared Room";
-                    const newRoom = { name: roomName.toUpperCase(), slug: roomSlug };
-                    setActiveRoom(newRoom);
-                    setView('chat');
-                    // Add to recent rooms list if not already there
-                    setRooms(prev => {
-                        if (prev.some(r => r.slug === roomSlug)) return prev;
-                        const updated = [newRoom, ...prev];
-                        localStorage.setItem('my_rooms', JSON.stringify(updated));
-                        return updated;
-                    });
-                }
-            }, []);
-
-            React.useEffect(() => { document.body.className = theme; }, [theme]);
-
-            React.useEffect(() => {
-                if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-            }, [messages]);
 
             const [currentHour, setCurrentHour] = React.useState(new Date().getHours());
             const myName = React.useMemo(() => {
@@ -94,50 +71,89 @@
                 return NAMES[Math.abs(hash + currentHour) % NAMES.length];
             }, [sid, currentHour]);
 
+            React.useEffect(() => { document.body.className = theme; }, [theme]);
+            React.useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, typer]);
+
             React.useEffect(() => {
                 const timer = setInterval(() => {
                     const now = new Date();
                     setTimeLeft(`${59 - now.getMinutes()}m ${59 - now.getSeconds()}s`);
+                    setTick(t => t + 1);
                     if (now.getHours() !== currentHour) setCurrentHour(now.getHours());
                 }, 1000);
                 return () => clearInterval(timer);
             }, [currentHour]);
 
             React.useEffect(() => {
+                const params = new URLSearchParams(window.location.search);
+                const roomSlug = params.get('room');
+                if (roomSlug && view === 'home') {
+                    const roomName = roomSlug.split('-').slice(0, -1).join(' ') || "Shared Room";
+                    const newRoom = { name: roomName.toUpperCase(), slug: roomSlug };
+                    setActiveRoom(newRoom); setView('chat');
+                    setRooms(prev => {
+                        const exists = prev.some(r => r.slug === roomSlug);
+                        if (exists) return prev;
+                        const updated = [newRoom, ...prev];
+                        localStorage.setItem('my_rooms', JSON.stringify(updated));
+                        return updated;
+                    });
+                }
+            }, []);
+
+            React.useEffect(() => {
                 if (view !== 'chat' || !activeRoom) return;
-                setMessages([]);
-                setShowHint(true);
+                setMessages([]); setShowHint(true);
                 setTimeout(() => setShowHint(false), 5000);
 
                 const channel = sb.channel(`room_${activeRoom.slug}`, { config: { presence: { key: sid } } })
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => {
-                        if (p.new.room_slug === activeRoom.slug) {
+                    .on('postgres_changes', { 
+                        event: '*', 
+                        schema: 'public', 
+                        table: 'messages', 
+                        filter: `room_slug=eq.${activeRoom.slug}` 
+                    }, (p) => {
+                        if (p.eventType === 'DELETE') {
+                            setMessages(prev => prev.filter(m => m.id !== p.old.id));
+                        } else {
                             setMessages(prev => {
-                                const isDuplicate = prev.some(m => m.id === p.new.id || (m.isTemp && m.content === p.new.content && m.username === p.new.username));
-                                if (isDuplicate) return prev.map(m => (m.isTemp && m.content === p.new.content) ? p.new : m);
+                                const exists = prev.some(m => m.id === p.new.id || (m.isTemp && m.content === p.new.content && m.username === p.new.username));
+                                if (exists) return prev.map(m => (m.isTemp && m.content === p.new.content) ? p.new : m);
                                 return [...prev, p.new];
                             });
                         }
                     })
                     .on('presence', { event: 'sync' }, () => {
-                        setOnlineCount(Object.keys(channel.presenceState()).length);
+                        const state = channel.presenceState();
+                        setOnlineCount(Object.keys(state).length);
+                        const others = Object.values(state).flat().filter(u => u.user !== myName && u.typing);
+                        setTyper(others.length > 0 ? others[0].user : null);
                     })
                     .subscribe(async (status) => { if (status === 'SUBSCRIBED') {
-                        await channel.track({ user: myName });
-                        const cutoff = new Date(Date.now() - 3600000).toISOString();
+                        await channel.track({ user: myName, typing: false });
+                        const now = new Date();
+                        const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours()).toISOString();
                         const {data} = await sb.from('messages').select('*').eq('room_slug', activeRoom.slug).gt('created_at', cutoff).order('created_at', { ascending: true });
                         if(data) setMessages(data);
                     }});
-                
-                return () => sb.removeChannel(channel);
-            }, [view, activeRoom]);
+                return () => { sb.removeChannel(channel); };
+            }, [view, activeRoom, currentHour]);
+
+            const handleTyping = async (val) => {
+                if (activeRoom) {
+                    const channel = sb.channel(`room_${activeRoom.slug}`);
+                    await channel.track({ user: myName, typing: val });
+                }
+            };
 
             const handleSend = async (e) => {
                 e.preventDefault();
                 if (!input.trim()) return;
-                if (BANNED_LIST.some(word => input.toLowerCase().includes(word))) {
+                const clean = input.toLowerCase();
+                if (BANNED_LIST.some(word => clean.includes(word))) {
                     alert("⚠️ SAFETY ALERT: Forbidden content blocked."); return;
                 }
+                handleTyping(false);
                 const body = replyTo ? `[REPLY]${replyTo.username}: ${replyTo.content.split('>>>').pop()}>>>${input}` : input;
                 const tempMsg = { id: Date.now(), content: body, user_session_id: sid, username: myName, created_at: new Date().toISOString(), isTemp: true };
                 setMessages(prev => [...prev, tempMsg]);
@@ -145,32 +161,22 @@
                 await sb.from('messages').insert([{ content: body, user_session_id: sid, username: myName, room_slug: activeRoom.slug }]);
             };
 
-            // FIXED SHARE URL LOGIC
-            const getShareLink = () => {
-                const baseUrl = window.location.origin + window.location.pathname;
-                return `${baseUrl}?room=${activeRoom?.slug || ''}`;
-            };
-
             const visibleMessages = messages.filter(m => {
-                const ageInMs = Date.now() - new Date(m.created_at).getTime();
-                return ageInMs < 3600000;
+                const msgDate = new Date(m.created_at);
+                const now = new Date();
+                return msgDate.getHours() === now.getHours() && msgDate.getDate() === now.getDate();
             });
 
             if (view === 'home') return (
                 <div className="h-full overflow-y-auto custom-scroll relative px-6 pt-10 pb-32">
                     <div className="liquid-bg"><div className="orb orb-1"></div></div>
                     <div className="flex justify-between items-center mb-10">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center border border-white/20 logo-pulse"><span className="text-3xl">🎭</span></div>
-                            <h1 className="text-3xl font-black tracking-tighter text-[#00ffcc]">CHATWEB</h1>
-                        </div>
+                        <div className="flex items-center gap-4"><div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center border border-white/20 logo-pulse"><span className="text-3xl">🎭</span></div><h1 className="text-3xl font-black tracking-tighter text-[#00ffcc]">CHATWEB</h1></div>
                         <button onClick={() => setSettingsOpen(true)} className="text-2xl">⚙️</button>
                     </div>
-                    <div className="glass-morphism rounded-3xl p-6 mb-8 identity-cyber">
-                        <div className="flex justify-between items-center">
-                            <div><p className="text-[10px] font-black uppercase mb-1">Active Alias</p><h2 className="text-xl font-extrabold">{myName}</h2></div>
-                            <div className="text-right"><p className="text-[10px] font-black uppercase mb-1 text-rose-500">Reset In</p><p className="font-mono">{timeLeft}</p></div>
-                        </div>
+                    <div className="glass-morphism rounded-3xl p-6 mb-8 identity-cyber flex justify-between items-center">
+                        <div><p className="text-[10px] font-black uppercase mb-1">Active Alias</p><h2 className="text-xl font-extrabold">{myName}</h2></div>
+                        <div className="text-right"><p className="text-[10px] font-black uppercase mb-1 text-rose-500">Reset In</p><p className="font-mono">{timeLeft}</p></div>
                     </div>
                     <div className="mb-10">
                         <h3 className="text-xs font-black uppercase opacity-50 mb-4 tracking-widest">Active Nodes</h3>
@@ -178,31 +184,19 @@
                             {rooms.map(r => (
                                 <div key={r.slug} onClick={() => { setActiveRoom(r); setView('chat'); }} className="glass-morphism p-5 rounded-3xl flex justify-between items-center cursor-pointer">
                                     <h3 className="font-extrabold">{r.name}</h3>
-                                    <button onClick={(e) => { e.stopPropagation(); setRooms(rooms.filter(x => x.slug !== r.slug)); localStorage.setItem('my_rooms', JSON.stringify(rooms.filter(x => x.slug !== r.slug))); }} className="text-rose-500 opacity-50">🗑️</button>
+                                    <button onClick={(e) => { e.stopPropagation(); if(confirm("Delete this group from your list?")){ const filtered = rooms.filter(x => x.slug !== r.slug); setRooms(filtered); localStorage.setItem('my_rooms', JSON.stringify(filtered)); }}} className="text-rose-500 opacity-50">🗑️</button>
                                 </div>
                             ))}
                         </div>
                     </div>
-                    <div className="pt-10 border-t border-white/10 space-y-6">
-                        <h2 className="text-xl font-black uppercase tracking-tighter">Terminal Intel</h2>
-                        <div className="glass-morphism rounded-2xl p-5 border-white/5"><h4 className="font-bold text-[#00ffcc] text-xs uppercase mb-1">Privacy Protocol</h4><p className="text-xs opacity-70">Wipe sequence initiates every 60 minutes. No data is stored beyond that window.</p></div>
-                        <div className="glass-morphism rounded-2xl p-5 border-white/5"><h4 className="font-bold text-[#00ffcc] text-xs uppercase mb-1">Why do names change?</h4><p className="text-xs opacity-70">Every hour, your digital identity is refreshed to maintain total anonymity.</p></div>
-                        <div className="glass-morphism rounded-2xl p-5 border-white/5"><h4 className="font-bold text-[#00ffcc] text-xs uppercase mb-1">How to reply?</h4><p className="text-xs opacity-70">Simply tap any message in the chat to see the reply option.</p></div>
-                        <div className="glass-morphism rounded-2xl p-5 border-white/5"><h4 className="font-bold text-[#00ffcc] text-xs uppercase mb-1">Live Online Status</h4><p className="text-xs opacity-70">The counter shows unique active connections currently inside this node.</p></div>
-                        <div className="glass-morphism rounded-2xl p-5 border-white/5"><h4 className="font-bold text-rose-500 text-xs uppercase mb-1">Safety Filter</h4><p className="text-xs opacity-70">Forbidden language is instantly blocked by the terminal AI.</p></div>
+                    <div className="pt-10 border-t border-white/10 space-y-4">
+                        <h2 className="text-xs font-black uppercase opacity-30">Terminal Intel</h2>
+                        <div className="glass-morphism rounded-2xl p-5"><h4 className="font-bold text-[#00ffcc] text-xs uppercase mb-1">Stealth Protocol</h4><p className="text-xs opacity-70">Automatic alias rotation and data purge every 60 minutes for total anonymity.</p></div>
+                        <div className="glass-morphism rounded-2xl p-5"><h4 className="font-bold text-rose-500 text-xs uppercase mb-1">Safety Core</h4><p className="text-xs opacity-70">Strict AI filtering prevents explicit content and ensures a secure environment.</p></div>
+                        <div className="glass-morphism rounded-2xl p-5"><h4 className="font-bold text-blue-400 text-xs uppercase mb-1">Conduct Rules</h4><p className="text-xs opacity-70">Respect the terminal. No harassment, no spamming, and maintain the node stability.</p></div>
                     </div>
-                    <div className="mt-12 py-6 text-center opacity-30"><p className="text-[10px] font-black tracking-widest uppercase">© 2026 <span className="text-[#00ffcc]">CHATWEB</span></p></div>
                     <div className="fixed bottom-8 left-6 right-6 z-50"><button onClick={() => setView('create')} className="w-full bg-white text-black p-5 rounded-[2rem] font-black text-lg shadow-2xl">INITIALIZE CHAT</button></div>
-                    {settingsOpen && (
-                        <div className="fixed inset-0 bg-black/95 z-[200] flex flex-col justify-end p-6" onClick={()=>setSettingsOpen(false)}>
-                            <div className="glass-morphism p-8 rounded-[3rem] space-y-4" onClick={e=>e.stopPropagation()}>
-                                <button onClick={()=>setTheme('theme-black')} className="w-full p-4 bg-black text-white rounded-2xl font-bold">MIDNIGHT</button>
-                                <button onClick={()=>setTheme('theme-white')} className="w-full p-4 bg-white text-black rounded-2xl font-bold">CLEAN</button>
-                                <button onClick={()=>setTheme('theme-mix')} className="w-full p-4 bg-indigo-900 text-white rounded-2xl font-bold">CYBER MIX</button>
-                                <button onClick={()=>setSettingsOpen(false)} className="w-full p-4 opacity-50 font-bold uppercase text-xs">CLOSE</button>
-                            </div>
-                        </div>
-                    )}
+                    {settingsOpen && <div className="fixed inset-0 bg-black/95 z-[200] flex flex-col justify-end p-6" onClick={()=>setSettingsOpen(false)}><div className="glass-morphism p-8 rounded-[3rem] space-y-4" onClick={e=>e.stopPropagation()}><button onClick={()=>setTheme('theme-black')} className="w-full p-4 bg-black text-white rounded-2xl font-bold">MIDNIGHT</button><button onClick={()=>setTheme('theme-white')} className="w-full p-4 bg-white text-black rounded-2xl font-bold">CLEAN</button><button onClick={()=>setTheme('theme-mix')} className="w-full p-4 bg-indigo-900 text-white rounded-2xl font-bold">CYBER MIX</button></div></div>}
                 </div>
             );
 
@@ -210,66 +204,35 @@
                 <div className="h-full p-8"><button onClick={() => setView('home')} className="mb-10 opacity-50 font-bold">← BACK</button>
                     <h1 className="text-5xl font-black mb-6 uppercase">NEW ROOM</h1>
                     <input autoFocus value={input} onChange={e => setInput(e.target.value)} placeholder="Node Name..." className="glass-morphism w-full p-6 rounded-3xl text-xl outline-none mb-6" />
-                    <button onClick={() => {
-                        const n = { name: input.toUpperCase(), slug: input.toLowerCase().replace(/\s+/g, '-') + '-' + Math.random().toString(36).substr(2, 4) };
-                        const up = [n, ...rooms]; setRooms(up); localStorage.setItem('my_rooms', JSON.stringify(up));
-                        setActiveRoom(n); setView('chat'); setInput('');
-                    }} className="w-full bg-[#00ffcc] text-black p-6 rounded-3xl font-black text-xl">ACTIVATE</button>
+                    <button onClick={() => { if(!input.trim()) return; const n = { name: input.toUpperCase(), slug: input.toLowerCase().replace(/\s+/g, '-') + '-' + Math.random().toString(36).substr(2, 4) }; const up = [n, ...rooms]; setRooms(up); localStorage.setItem('my_rooms', JSON.stringify(up)); setActiveRoom(n); setView('chat'); setInput(''); }} className="w-full bg-[#00ffcc] text-black p-6 rounded-3xl font-black text-xl">ACTIVATE</button>
                 </div>
             );
 
             return (
                 <div className="h-full flex flex-col relative overflow-hidden">
-                    {showHint && (
-                        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[100] hint-toast">
-                            <div className="bg-[#00ffcc] text-black text-[10px] font-black px-4 py-2 rounded-full shadow-lg">💡 TIP: TAP A MESSAGE TO REPLY!</div>
-                        </div>
-                    )}
+                    {showHint && <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[100] hint-toast"><div className="bg-[#00ffcc] text-black text-[10px] font-black px-4 py-2 rounded-full shadow-lg">💡 TIP: TAP A MESSAGE TO REPLY!</div></div>}
                     <header className="p-6 pt-12 glass-morphism flex items-center justify-between border-b border-white/10 z-10">
                         <button onClick={() => setView('home')} className="text-2xl">←</button>
-                        <div className="text-center"><h2 className="font-black text-[#00ffcc] uppercase tracking-tighter">{activeRoom.name}</h2><p className="text-[10px] opacity-80 uppercase font-black flex items-center justify-center"><span className="online-dot"></span>{onlineCount} ONLINE</p></div>
+                        <div className="text-center"><h2 className="font-black text-[#00ffcc] uppercase tracking-tighter">{activeRoom.name}</h2><p className="text-[10px] opacity-80 uppercase font-black flex items-center justify-center"><span className="online-dot"></span>{onlineCount} ONLINE</p>
+                        {typer && <p className="text-[8px] text-[#00ffcc] font-bold animate-pulse">{typer} is typing...</p>}</div>
                         <button onClick={() => setShareOpen(true)} className="bg-white/10 px-4 py-2 rounded-full text-[10px] font-black">SHARE</button>
                     </header>
                     <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-scroll scroll-smooth">
                         {visibleMessages.map((m, i) => (
                             <div key={m.id || i} className={`flex flex-col ${m.user_session_id === sid ? 'items-end' : 'items-start'}`}>
-                                <div className="flex items-center gap-2 mb-1 px-2">
-                                    <p className="text-[9px] font-bold opacity-40 uppercase">{m.username}</p>
-                                    {m.user_session_id === sid && <button onClick={async()=> { setMessages(prev => prev.filter(x => x.id !== m.id)); await sb.from('messages').delete().match({ id: m.id, user_session_id: sid }); }} className="text-[9px] text-rose-500 font-bold uppercase">Delete</button>}
-                                </div>
+                                <div className="flex items-center gap-2 mb-1 px-2"><p className="text-[9px] font-bold opacity-40 uppercase">{m.username}</p>{m.user_session_id === sid && <button onClick={async()=> { setMessages(prev => prev.filter(x => x.id !== m.id)); await sb.from('messages').delete().match({ id: m.id, user_session_id: sid }); }} className="text-[9px] text-rose-500 font-bold uppercase">Delete</button>}</div>
                                 <div onClick={() => setSelectedMsgId(selectedMsgId === m.id ? null : m.id)} className={`relative max-w-[85%] px-5 py-3 rounded-2xl text-sm glass-morphism ${m.user_session_id === sid ? 'bg-[#00ffcc] text-black font-semibold rounded-tr-none' : 'rounded-tl-none'}`}>
-                                    {selectedMsgId === m.id && (
-                                        <div className="reply-tag"><button onClick={(ev) => { ev.stopPropagation(); setReplyTo(m); setSelectedMsgId(null); }} className="text-[10px] font-black text-[#00ffcc]">REPLY</button></div>
-                                    )}
-                                    {m.content.includes('[REPLY]') ? (
-                                        <><div className="bg-black/20 rounded-xl p-2 mb-2 border-l-2 border-[#00ffcc] text-[10px] opacity-70 italic">{m.content.split('>>>')[0].replace('[REPLY]', '')}</div>{m.content.split('>>>').pop()}</>
-                                    ) : m.content}
+                                    {selectedMsgId === m.id && <div className="reply-tag"><button onClick={(ev) => { ev.stopPropagation(); setReplyTo(m); setSelectedMsgId(null); }} className="text-[10px] font-black text-[#00ffcc]">REPLY</button></div>}
+                                    {m.content.includes('[REPLY]') ? <><div className="bg-black/20 rounded-xl p-2 mb-2 border-l-2 border-[#00ffcc] text-[10px] opacity-70 italic">{m.content.split('>>>')[0].replace('[REPLY]', '')}</div>{m.content.split('>>>').pop()}</> : m.content}
                                 </div>
                             </div>
                         ))}
                     </div>
                     <div className="glass-morphism z-10">
-                        {replyTo && (
-                            <div className="px-6 py-2 bg-black/20 flex justify-between items-center border-t border-[#00ffcc]/30">
-                                <p className="text-[10px] italic opacity-70">Replying to: {replyTo.username}</p>
-                                <button onClick={() => setReplyTo(null)} className="text-[#00ffcc] text-xs font-bold">✕</button>
-                            </div>
-                        )}
-                        <form onSubmit={handleSend} className="p-4 pb-10 flex gap-2">
-                            <input value={input} onChange={e => setInput(e.target.value)} placeholder="Secure message..." className="flex-1 bg-transparent p-4 outline-none text-sm" />
-                            <button type="submit" className="bg-[#00ffcc] text-black w-12 h-12 rounded-2xl font-black">🚀</button>
-                        </form>
+                        {replyTo && <div className="px-6 py-2 bg-black/20 flex justify-between items-center border-t border-[#00ffcc]/30"><p className="text-[10px] italic opacity-70">Replying to: {replyTo.username}</p><button onClick={() => setReplyTo(null)} className="text-[#00ffcc] text-xs font-bold">✕</button></div>}
+                        <form onSubmit={handleSend} className="p-4 pb-10 flex gap-2"><input value={input} onFocus={()=>handleTyping(true)} onBlur={()=>handleTyping(false)} onChange={e => setInput(e.target.value)} placeholder="Secure message..." className="flex-1 bg-transparent p-4 outline-none text-sm" /><button type="submit" className="bg-[#00ffcc] text-black w-12 h-12 rounded-2xl font-black">🚀</button></form>
                     </div>
-                    {shareOpen && (
-                        <div className="fixed inset-0 bg-black/95 z-[100] flex flex-col justify-end p-6" onClick={()=>setShareOpen(false)}>
-                            <div className="glass-morphism p-10 rounded-[3rem] text-center space-y-4" onClick={e=>e.stopPropagation()}>
-                                <h3 className="font-black text-xl mb-4 text-[#00ffcc]">SHARE NODE</h3>
-                                <button onClick={() => { navigator.clipboard.writeText(getShareLink()); alert("Link Copied!"); }} className="w-full bg-white text-black p-5 rounded-2xl font-bold">COPY LINK</button>
-                                <button onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent("Join my secure chat node: " + getShareLink())}`, '_blank'); }} className="w-full bg-[#25D366] text-white p-5 rounded-2xl font-bold">WHATSAPP</button>
-                                <button onClick={()=>setShareOpen(false)} className="w-full p-4 opacity-40 font-bold text-xs uppercase">CLOSE</button>
-                            </div>
-                        </div>
-                    )}
+                    {shareOpen && <div className="fixed inset-0 bg-black/95 z-[100] flex flex-col justify-end p-6" onClick={()=>setShareOpen(false)}><div className="glass-morphism p-10 rounded-[3rem] text-center space-y-4" onClick={e=>e.stopPropagation()}><h3 className="font-black text-xl mb-4 text-[#00ffcc]">SHARE NODE</h3><button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?room=${activeRoom?.slug}`); alert("Link Copied!"); }} className="w-full bg-white text-black p-5 rounded-2xl font-bold">COPY LINK</button><button onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent("Join my secure chat node: " + window.location.origin + window.location.pathname + "?room=" + activeRoom?.slug)}`, '_blank'); }} className="w-full bg-[#25D366] text-white p-5 rounded-2xl font-bold">WHATSAPP</button></div></div>}
                 </div>
             );
         }
